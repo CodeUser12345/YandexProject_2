@@ -7,18 +7,34 @@ import sys
 import math
 
 
-def load_image(path_image, colorkey=None):
+def get_image(data):
+    type_data = type(data)
+    if type_data is tuple or type_data is list:
+        path_image = data[0]
+        color_key = data[1]
+    elif type_data is str:
+        path_image = data
+        color_key = None
+    elif data is None:
+        path_image = None
+        color_key = None
+    elif type_data is pygame.Surface:
+        return data
+    else:
+        print(f"Ошибка определения параметров, тип '{type_data}' не определен")
+        sys.exit()
+
     if path_image is not None:
         if not os.path.isfile(path_image):
             print(f"Файл с изображением '{path_image}' не найден")
             sys.exit()
         image = pygame.image.load(path_image)
 
-        if colorkey is not None:
+        if color_key is not None:
             image = image.convert()
-            if colorkey == -1:
-                colorkey = image.get_at((0, 0))
-            image.set_colorkey(colorkey)
+            if color_key == -1:
+                color_key = image.get_at((0, 0))
+            image.set_colorkey(color_key)
         else:
             image = image.convert_alpha()
     else:
@@ -30,7 +46,7 @@ class Sprite(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height):
         super().__init__()
         self.rect = pygame.Rect(x, y, width, height)
-        self.set_image(load_image(None))
+        self.set_image(get_image(None))
         self.last_time, self.step_time = time.time(), 0.001
         self.animations, self.animation_frame_index, self.animation_index, self.animation_flag = [], 0, 0, False
 
@@ -68,9 +84,7 @@ class Sprite(pygame.sprite.Sprite):
             self.set_activate_animation(-1)
 
     def set_frames_animation(self, index, frames):
-        self.animations[index][0] = [load_image(n[0], n[1]) if type(n) == list else
-                                     (load_image(n) if type(n) == str else
-                                      self.set_image(n)) for n in frames]
+        self.animations[index][0] = [get_image(n) for n in frames]
         self.animations[index][1] = len(self.animations[index][0])
 
     def set_speed_animation(self, index, speed):
@@ -120,7 +134,7 @@ class Entity(Sprite):
         super().__init__(x, y, 25, 25)
         self.vx, self.vy, self.speed, self.vector_flag, self.speed_flag = 0, 0, 0, False, False
         self.step_x, self.step_y = 0, 0
-        self.set_image(load_image(path_image, -1))
+        self.set_image(get_image([path_image, -1]))
 
         self.name = ""
         self.species = ""
@@ -182,12 +196,12 @@ class Object(Sprite):
 class Button:
     def __init__(self, x, y):
         self.rect = pygame.Rect(x, y)
-        self.passive_image = 0
-        self.select_image = 0
-        self.active_image = 0
+        self.passive_image = None
+        self.select_image = None
+        self.active_image = None
 
         self.sprite = pygame.pygame.sprite.Sprite()
-        self.sprite.set_image(load_image(None))
+        self.sprite.set_image(get_image(None))
 
     def set_passive_image(self, image):
         self.passive_image = image
