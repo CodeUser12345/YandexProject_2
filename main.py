@@ -165,6 +165,7 @@ class Entity(Sprite):
 
     def update(self):
         pass
+        pass
 
 
 class Button:
