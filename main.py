@@ -8,18 +8,21 @@ import math
 
 
 def load_image(path_image, colorkey=None):
-    if not os.path.isfile(path_image):
-        print(f"Файл с изображением '{path_image}' не найден")
-        sys.exit()
-    image = pygame.image.load(path_image)
+    if path_image is not None:
+        if not os.path.isfile(path_image):
+            print(f"Файл с изображением '{path_image}' не найден")
+            sys.exit()
+        image = pygame.image.load(path_image)
 
-    if colorkey is not None:
-        image = image.convert()
-        if colorkey == -1:
-            colorkey = image.get_at((0, 0))
-        image.set_colorkey(colorkey)
+        if colorkey is not None:
+            image = image.convert()
+            if colorkey == -1:
+                colorkey = image.get_at((0, 0))
+            image.set_colorkey(colorkey)
+        else:
+            image = image.convert_alpha()
     else:
-        image = image.convert_alpha()
+        image = pygame.Surface((25, 25))
     return image
 
 
@@ -27,18 +30,12 @@ class Sprite(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height):
         super().__init__()
         self.rect = pygame.Rect(x, y, width, height)
-        self.set_image(self.load_image(""))
+        self.set_image(load_image(None))
         self.last_time, self.step_time = time.time(), 0.001
         self.animations, self.animation_frame_index, self.animation_index, self.animation_flag = [], 0, 0, False
 
     def add(self, group):
         group.add(self)
-
-    def load_image(self, path_image, colorkey_image=None):
-        if path_image:
-            return load_image(path_image, colorkey_image)
-        else:
-            return pygame.Surface((self.rect.w, self.rect.h))
 
     def set_image(self, image):
         self.image = image
@@ -71,8 +68,8 @@ class Sprite(pygame.sprite.Sprite):
             self.set_activate_animation(-1)
 
     def set_frames_animation(self, index, frames):
-        self.animations[index][0] = [self.load_image(n[0], n[1]) if type(n) == list else
-                                     (self.load_image(n) if type(n) == str else
+        self.animations[index][0] = [load_image(n[0], n[1]) if type(n) == list else
+                                     (load_image(n) if type(n) == str else
                                       self.set_image(n)) for n in frames]
         self.animations[index][1] = len(self.animations[index][0])
 
@@ -106,7 +103,10 @@ class Sprite(pygame.sprite.Sprite):
         step_last_and_now_time = time_now - self.last_time
         number = int(step_last_and_now_time // self.step_time)
         self.last_time = time_now - (step_last_and_now_time - number * self.step_time)
-        return number
+        if number > 30:
+            return 0
+        else:
+            return number
 
     def update(self, time_now):
         number = self._get_steps_last_and_now_time(time_now)
@@ -120,7 +120,7 @@ class Entity(Sprite):
         super().__init__(x, y, 25, 25)
         self.vx, self.vy, self.speed, self.vector_flag, self.speed_flag = 0, 0, 0, False, False
         self.step_x, self.step_y = 0, 0
-        self.set_image(self.load_image(path_image, -1))
+        self.set_image(load_image(path_image, -1))
 
         self.name = ""
         self.species = ""
@@ -173,38 +173,47 @@ class Entity(Sprite):
             if self.speed_flag and self.vector_flag:
                 self._run(number)
 
+
+class Object(Sprite):
+    def __init__(self):
+        pass
+
+
 class Button:
-    def __init__(self, x, y, width, height):
-        self.rect = pygame.Rect(x, y, width, height)
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y)
         self.passive_image = 0
         self.select_image = 0
         self.active_image = 0
-        self.set_image(self.load_image(""))
 
-    def update(self, x, y, key):
-        pass
+        self.sprite = pygame.pygame.sprite.Sprite()
+        self.sprite.set_image(load_image(None))
 
     def set_passive_image(self, image):
-        pass
+        self.passive_image = image
 
     def set_select_image(self, image):
-        pass
+        self.select_image = image
 
     def set_active_image(self, image):
+        self.active_image = image
+
+    def update(self, x, y, key):
         pass
 
 
 class MainWindow:
     def __init__(self):
         pygame.init()
-        width, height = 900, 600
-        screen = pygame.display.set_mode((width, height))#, pygame.FULLSCREEN)
+        window = pygame.display.Info()
+        width, height = window.current_w // 1.5, window.current_h // 1.5 # деление потом убрать
+        screen = pygame.display.set_mode((width, height))
 
         all_sprites = pygame.sprite.Group()
 
         entity = Entity(25, 25, "data\\frames_2\\Spider_1 — копия (5).png")
         entity.add(all_sprites)
-        entity.set_vector(360)
+        entity.set_vector(125)
         entity.set_speed(0.1)
 
         running = True
