@@ -195,13 +195,13 @@ class Object(Sprite):
 
 class Button:
     def __init__(self, x, y):
-        self.rect = pygame.Rect(x, y)
+        self.rect = pygame.Rect(x, y, 25, 25)
         self.passive_image = None
         self.select_image = None
         self.active_image = None
 
-        self.sprite = pygame.pygame.sprite.Sprite()
-        self.sprite.set_image(get_image(None))
+        self.sprite = pygame.sprite.Sprite()
+        self.sprite.image = get_image(None)
 
     def set_passive_image(self, image):
         self.passive_image = image
@@ -219,31 +219,82 @@ class Button:
 class MainWindow:
     def __init__(self):
         pygame.init()
-        window = pygame.display.Info()
-        width, height = window.current_w // 1.5, window.current_h // 1.5 # деление потом убрать
-        screen = pygame.display.set_mode((width, height))
+        self.window = pygame.display.Info()
+        self.width_window, self.height_window = self.window.current_w // 1.5, \
+                                                self.window.current_h // 1.5 # деление потом убрать
+        self.screen = pygame.display.set_mode((self.width_window, self.height_window))
 
-        all_sprites = pygame.sprite.Group()
+        self.all_sprites = pygame.sprite.Group()
 
         entity = Entity(25, 25, "data\\frames_2\\Spider_1 — копия (5).png")
-        entity.add(all_sprites)
+        entity.add(self.all_sprites)
         entity.set_vector(125)
         entity.set_speed(0.1)
+        #button = Button(0, 0)
 
-        running = True
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
+        self.running = True
+        self.mouse_x, self.mouse_y = -1, -1
+        self.mouse_left, self.mouse_right = False, False
+        self.mouse_middle = False
+        self.mouse_up, self.mouse_down = False, False
+        self.keyboard_keys = []
+
+        self._get_data()
+
+        while self.running:
+            self._get_data()
 
             time_now = time.time()
+
             entity.update(time_now)
 
-            screen.fill((255, 255, 255))
-            all_sprites.draw(screen)
-
+            self.screen.fill((255, 255, 255))
+            self.all_sprites.draw(self.screen)
             pygame.display.flip()
         pygame.quit()
+
+    def _get_data(self):
+        mouse_focused = pygame.mouse.get_focused()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            if mouse_focused:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        self.mouse_left = True
+                    if event.button == 2:
+                        self.mouse_middle = True
+                    if event.button == 3:
+                        self.mouse_right = True
+                    if event.button == 4:
+                        self.mouse_up = True
+                    if event.button == 5:
+                        self.mouse_down = True
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    if event.button == 1:
+                        self.mouse_left = False
+                    if event.button == 2:
+                        self.mouse_middle = False
+                    if event.button == 3:
+                        self.mouse_right = False
+                    if event.button == 4:
+                        self.mouse_up = False
+                    if event.button == 5:
+                        self.mouse_down = False
+                if event.type == pygame.MOUSEMOTION:
+                    self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
+            else:
+                self.mouse_x, self.mouse_y = -1, -1
+                self.mouse_left, self.mouse_right = False, False
+                self.mouse_middle = False
+                self.mouse_up, self.mouse_down = False, False
+
+            self.keyboard_keys = []
+            new_list = list(pygame.key.get_pressed())
+            for n in range(len(new_list)):
+                if new_list[n]:
+                    self.keyboard_keys.append(n)
+            print(self.keyboard_keys)
 
 
 if __name__ == '__main__':
