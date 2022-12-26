@@ -55,6 +55,7 @@ class Sprite(pygame.sprite.Sprite):
 
     def set_image(self, image):
         self.image = image
+        self.mask = pygame.mask.from_surface(self.image)
 
     def set_position_x(self, x):
         self.rect.x = x
@@ -77,7 +78,7 @@ class Sprite(pygame.sprite.Sprite):
         self.set_size_height(height)
 
     def add_animation(self, frames, speed=0.01, activate=False):
-        self.animations.append([None, None, None])
+        self.animations.append([None, None, None, None])
         self.set_frames_animation(-1, frames)
         self.set_speed_animation(-1, speed)
         if activate:
@@ -85,10 +86,11 @@ class Sprite(pygame.sprite.Sprite):
 
     def set_frames_animation(self, index, frames):
         self.animations[index][0] = [get_image(n) for n in frames]
-        self.animations[index][1] = len(self.animations[index][0])
+        self.animations[index][1] = [pygame.mask.from_surface(n) for n in self.animations[index][0]]
+        self.animations[index][2] = len(self.animations[index][0])
 
     def set_speed_animation(self, index, speed):
-        self.animations[index][2] = speed
+        self.animations[index][3] = speed
 
     def delete_animation(self, index):
         self.animations.pop(index)
@@ -105,11 +107,12 @@ class Sprite(pygame.sprite.Sprite):
 
     def _animation(self, number):
         last_animation_frame_index = int(self.animation_frame_index)
-        self.animation_frame_index += number * self.animations[self.animation_index][2]
+        self.animation_frame_index += number * self.animations[self.animation_index][3]
         now_animation_frame_index = int(self.animation_frame_index)
         if now_animation_frame_index > last_animation_frame_index:
-            if now_animation_frame_index < self.animations[self.animation_index][1]:
-                self.set_image(self.animations[self.animation_index][0][now_animation_frame_index])
+            if now_animation_frame_index < self.animations[self.animation_index][2]:
+                self.image = self.animations[self.animation_index][0][now_animation_frame_index]
+                self.mask = self.animations[self.animation_index][1][now_animation_frame_index]
             else:
                 self.set_deactivate_animation()
 
@@ -122,11 +125,19 @@ class Sprite(pygame.sprite.Sprite):
         else:
             return number
 
-    def update(self, time_now):
+    def _intersections(self, list_objects):
+        for n in list_objects:
+            if pygame.sprite.collide_mask(self, n):
+                print(True)
+            else:
+                print(False)
+
+    def update(self, time_now, list_objects):
         number = self._get_steps_last_and_now_time(time_now)
         if number:
             if self.animation_flag:
                 self._animation(number)
+            self._intersections(list_objects)
 
 
 class Entity(Sprite):
@@ -179,13 +190,14 @@ class Entity(Sprite):
             self.step_y -= number
             self.rect.y += number
 
-    def update(self, time_now):
+    def update(self, time_now, list_objects=()):
         number = self._get_steps_last_and_now_time(time_now)
         if number:
             if self.animation_flag:
                 self._animation(number)
             if self.speed_flag and self.vector_flag:
                 self._run(number)
+            self._intersections(list_objects)
 
 
 class Object(Sprite):
@@ -228,8 +240,13 @@ class MainWindow:
 
         entity = Entity(25, 25, "data\\frames_2\\Spider_1 — копия (5).png")
         entity.add(self.all_sprites)
-        entity.set_vector(125)
+        entity.set_vector(135)
         entity.set_speed(0.1)
+
+        entity2 = Entity(425, 25, "data\\frames_2\\Spider_1 — копия (5).png")
+        entity2.add(self.all_sprites)
+        entity2.set_vector(225)
+        entity2.set_speed(0.1)
         #button = Button(0, 0)
 
         self.running = True
@@ -239,14 +256,14 @@ class MainWindow:
         self.mouse_up, self.mouse_down = False, False
         self.keyboard_keys = []
 
-        self._get_data()
-
         while self.running:
             self._get_data()
 
             time_now = time.time()
 
-            entity.update(time_now)
+            entity.update(time_now, [entity2])
+            entity2.update(time_now)
+            #button.update(self.mouse_x, self.mouse_y, self.mouse_left)
 
             self.screen.fill((255, 255, 255))
             self.all_sprites.draw(self.screen)
@@ -262,26 +279,26 @@ class MainWindow:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         self.mouse_left = True
-                    if event.button == 2:
+                    elif event.button == 2:
                         self.mouse_middle = True
-                    if event.button == 3:
+                    elif event.button == 3:
                         self.mouse_right = True
-                    if event.button == 4:
+                    elif event.button == 4:
                         self.mouse_up = True
-                    if event.button == 5:
+                    elif event.button == 5:
                         self.mouse_down = True
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if event.button == 1:
                         self.mouse_left = False
-                    if event.button == 2:
+                    elif event.button == 2:
                         self.mouse_middle = False
-                    if event.button == 3:
+                    elif event.button == 3:
                         self.mouse_right = False
-                    if event.button == 4:
+                    elif event.button == 4:
                         self.mouse_up = False
-                    if event.button == 5:
+                    elif event.button == 5:
                         self.mouse_down = False
-                if event.type == pygame.MOUSEMOTION:
+                elif event.type == pygame.MOUSEMOTION:
                     self.mouse_x, self.mouse_y = pygame.mouse.get_pos()
             else:
                 self.mouse_x, self.mouse_y = -1, -1
