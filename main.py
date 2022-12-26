@@ -294,7 +294,6 @@ class MainWindow:
             for n in range(len(new_list)):
                 if new_list[n]:
                     self.keyboard_keys.append(n)
-            print(self.keyboard_keys)
 
 
 if __name__ == '__main__':
