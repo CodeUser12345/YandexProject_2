@@ -55,6 +55,7 @@ class Sprite(pygame.sprite.Sprite):
         self.animations_speed = []  # скорость смены кадров для каждой анимации
         self.animations_loop = []  # флаги цикличности анимаций (повторять ли анимацию после ее завершения)
         self.animations_mask = []  # маски кадров для каждой анимации
+        self.animations_mask_flag = []  # нужно ли обновить masks для frames
         self.animations_frames = []  # готовые кадры для отрисовки анимаций
         self.animations_frames_sizes = []  # размер frame по высоте и ширине для каждой анимации
 
@@ -83,6 +84,7 @@ class Sprite(pygame.sprite.Sprite):
         self.set_animation_loop(-1, loop)
 
         self.animations_mask.append(None)
+        self.animations_mask_flag.append(None)
 
         self.animations_frames.append(None)
         self.animations_frames_sizes.append(None)
@@ -109,6 +111,7 @@ class Sprite(pygame.sprite.Sprite):
         self.animations_loop.pop(index)
 
         self.animations_mask.pop(index)
+        self.animations_mask_flag.pop(index)
 
         self.animations_frames.pop(index)
         self.animations_frames_sizes.pop(index)
@@ -173,7 +176,7 @@ class Sprite(pygame.sprite.Sprite):
 
     def get_animation_frame_index(self):
         if self.animation_frame_index < self.animations_len[self.animation_index]:
-            return self.animation_frame_index
+            return int(self.animation_frame_index)
         else:
             return self.animations_len[self.animation_index] - 1
 
@@ -187,7 +190,7 @@ class Sprite(pygame.sprite.Sprite):
     def get_animation_position_politic(self, index):
         return self.animations_position_politic[index]
 
-    def _update_list(self):
+    def _lists_update(self):
         if self.animations_frames[self.animation_index] is None:
             self.animations_frames[self.animation_index] = [None] * self.animations_len[self.animation_index]
             self.animations_frames_sizes[self.animation_index] = [None] * self.animations_len[self.animation_index]
@@ -195,7 +198,7 @@ class Sprite(pygame.sprite.Sprite):
             return True
         return False
 
-    def _set_scale_frames(self):
+    def _scale_frames_update(self):
         if self.animations_scale_flag[self.animation_index]:
             images = self.animations_images[self.animation_index]
             sizes = self.animations_images_sizes[self.animation_index]
@@ -208,10 +211,11 @@ class Sprite(pygame.sprite.Sprite):
                 self.animations_frames_sizes[self.animation_index][index] = [width, height]
             self.animations_scale_flag[self.animation_index] = False
             self.animations_position_politic_flag[self.animation_index] = True
+            self.animations_mask_flag[self.animation_index] = True
             return True
         return False
 
-    def _set_position_politic_frames(self):
+    def _position_politic_frames_update(self):
         if self.animations_position_politic_flag[self.animation_index]:
             sizes = self.animations_frames_sizes[self.animation_index]
             for index in range(self.animations_len[self.animation_index]):
@@ -234,13 +238,18 @@ class Sprite(pygame.sprite.Sprite):
             return True
         return False
 
-    def _set_data(self, index, mask_flag):
-        if mask_flag:
+    def _mask_update(self):
+        if self.animations_mask_flag[self.animation_index]:
             self.animations_mask[self.animation_index] = \
                 [pygame.mask.from_surface(frame) for frame in self.animations_frames[self.animation_index]]
+            self.animations_mask_flag[self.animation_index] = False
 
+    def _frame_update(self, index):
+        if index is None:
+            index = -1
         self.image = self.animations_frames[self.animation_index][index]
         self.mask = self.animations_mask[self.animation_index][index]
+
         self.rect.x -= self.last_add_x
         self.rect.y -= self.last_add_y
         self.rect.x += self.animations_position_add[self.animation_index][index][0]
@@ -248,39 +257,49 @@ class Sprite(pygame.sprite.Sprite):
         self.last_add_x = self.animations_position_add[self.animation_index][index][0]
         self.last_add_y = self.animations_position_add[self.animation_index][index][1]
 
-    def _set_image(self, index):
-        self._update_list()
-        flag_1 = self._set_scale_frames()
+    def _animation_frame_index_update(self, number):
+        last_animation_frame_index = int(self.animation_frame_index)
+        self.animation_frame_index += number * self.animations_speed[self.animation_index]
+        now_animation_frame_index = int(self.animation_frame_index)
+        if now_animation_frame_index > last_animation_frame_index:
+            if now_animation_frame_index < self.animations_len[self.animation_index]:
+                return now_animation_frame_index
+            elif last_animation_frame_index < self.animations_len[self.animation_index]:
+                return self.animations_len[self.animation_index] - 1
+            else:
+                return None
+        else:
+            if last_animation_frame_index < self.animations_len[self.animation_index]:
+                return last_animation_frame_index
+            else:
+                return None
 
-        self._set_position_politic_frames()
-        self._set_data(index, flag_1)
-
-    def _animation(self, number):
+    def _animation_update(self, index):
         if self.animation_flag:
-            last_animation_frame_index = int(self.animation_frame_index)
-            self.animation_frame_index += number * self.animations_speed[self.animation_index]
-            now_animation_frame_index = int(self.animation_frame_index)
-            if now_animation_frame_index > last_animation_frame_index:
-                if now_animation_frame_index < self.animations_len[self.animation_index]:
-                    self._set_image(now_animation_frame_index)
-                elif last_animation_frame_index < self.animations_len[self.animation_index]:
-                    self._set_image(-1)
+            if index is None:
+                if self.animations_loop[self.animation_index]:
+                    self.set_animation_activate(self.animation_index)
                 else:
-                    if self.animations_loop[self.animation_index]:
-                        self.set_animation_activate(self.animation_index)
-                    else:
-                        self.set_animation_deactivate()
+                    self.set_animation_deactivate()
+            return True
+        return False
 
     def _intersections(self, list_objects):
+        new_list = []
         for n in list_objects:
             if pygame.sprite.collide_mask(self, n):
-                pass  # print(True)
-            else:
-                pass  # print(False)
+                new_list.append(n)
+        return new_list
 
     def update(self, number, list_objects=()):
-        self._animation(number)
-        self._intersections(list_objects)
+        self._lists_update()  # добавляем None в списки новых animations
+        frame_index = self._animation_frame_index_update(number)  # вычисляем текущий индекс анимации
+        self._scale_frames_update()  # меняем масштаб frames
+        self._position_politic_frames_update()  # устанавливаем значения сдвигов на основе politic position
+        self._mask_update()  # обновляем маску
+        self._frame_update(frame_index)  # обновляем frame
+        self._animation_update(frame_index)  # активируем/переактивируем/деактивируем анимацию
+        self._intersections(list_objects)  # вычисляем объекты с которыми было пересечение
 
 
 class Entity(Sprite):
@@ -288,7 +307,7 @@ class Entity(Sprite):
         super().__init__(x, y, 1, 1)
         self.vx, self.vy, self.speed, self.vector_flag, self.speed_flag = 0, 0, 0, False, False
         self.step_x, self.step_y = 0, 0
-        self.add_animation([get_image([path_image, -1])], 100, activate=True)
+        self.add_animation([[path_image, -1], "data\\frames_2\\Spider_1 — копия (6) (1) (1).png"], 0.001, loop=True, activate=True)
 
         self.name = ""
         self.species = ""
@@ -333,12 +352,6 @@ class Entity(Sprite):
             self.step_y -= number
             self.rect.y += number
 
-    def update(self, number, list_objects=()):
-        self._animation(number)
-        if self.speed_flag and self.vector_flag:
-            self._run(number)
-        self._intersections(list_objects)
-
 
 class Object(Sprite):
     def __init__(self):
@@ -369,9 +382,13 @@ class Button:
 
 
 class Camera:
-    def __init__(self, min_x=0, max_x=1000, now_x=0, min_y=0, max_y=1000, now_y=0,
+    def __init__(self, width, height, min_x=0, max_x=1000, now_x=0, min_y=0, max_y=1000, now_y=0,
                  min_scale=0.5, max_scale=1.5, now_scale=1):
         self.sprites, self.index_list = [], []
+
+        self.width, self.height = None, None
+        self.set_width(width)
+        self.set_height(height)
 
         self.min_x, self.max_x, self.now_x = None, None, 0
         self.set_min_x(min_x)
@@ -395,6 +412,12 @@ class Camera:
     def delete_sprite(self, index):
         self.sprites.pop(index)
         self.index_list = range(len(self.sprites))
+
+    def set_width(self, width):
+        self.width = width
+
+    def set_height(self, height):
+        self.height = height
 
     def set_min_x(self, number):
         self.min_x = number
@@ -480,7 +503,6 @@ class Camera:
                     new_scale_x, new_scale_y = scale[0] / self.now_scale * new_scale, \
                                                scale[1] / self.now_scale * new_scale
                     self.sprites[n].set_animation_scale(index, new_scale_x, new_scale_y)
-                    self.sprites[n].set_animation_activate(index)
                     new_sizes = self.sprites[n].get_animation_frames_sizes(index)[index_frame]
                 self.now_scale = new_scale
 
@@ -494,10 +516,9 @@ class MainWindow:
     def __init__(self):
         pygame.init()
         self.window = pygame.display.Info()
-        self.width_window, self.height_window = self.window.current_w // 1.5, \
-                                                self.window.current_h // 1.5  # деление потом убрать
-        self.screen = pygame.display.set_mode((self.width_window, self.height_window))
-        self.camera = Camera(min_x=-500, max_x=500, min_y=-500, max_y=500)
+        self.width_window, self.height_window = self.window.current_w, self.window.current_h
+        self.screen = pygame.display.set_mode((self.width_window // 1.5, self.height_window // 1.5))
+        self.camera = Camera(self.width_window, self.height_window, min_x=-500, max_x=500, min_y=-500, max_y=500)
 
         self.last_time, self.step_time, self.number_frames_time = time.time(), 0.001, 0
 
@@ -527,9 +548,12 @@ class MainWindow:
             self._get_data()
             self._get_number_frames_time()
 
-            x = 1 if 7 in self.keyboard_keys else (-1 if 4 in self.keyboard_keys else 0)
-            y = 1 if 22 in self.keyboard_keys else (-1 if 26 in self.keyboard_keys else 0)
-            up_and_down = 0.05 if self.mouse_up else (-0.05 if self.mouse_down else 0)
+            x = 1 * self.number_frames_time if 7 in self.keyboard_keys else \
+                (-1 * self.number_frames_time if 4 in self.keyboard_keys else 0)
+            y = 1 * self.number_frames_time if 22 in self.keyboard_keys else \
+                (-1 * self.number_frames_time if 26 in self.keyboard_keys else 0)
+            up_and_down = 0.05 * self.number_frames_time \
+                if self.mouse_up else (-0.05 * self.number_frames_time if self.mouse_down else 0)
             self.camera.update(x, y, up_and_down)
             if self.number_frames_time:
                 entity.update(self.number_frames_time)
@@ -591,11 +615,11 @@ class MainWindow:
         time_now = time.time()
         step_last_and_now_time = time_now - self.last_time
         number = int(step_last_and_now_time // self.step_time)
-        self.last_time = time_now - (step_last_and_now_time - number * self.step_time)
         if number > 30:
             self.number_frames_time = 0
         else:
             self.number_frames_time = number
+        self.last_time = time_now - (step_last_and_now_time - number * self.step_time)
 
 
 if __name__ == '__main__':
