@@ -45,7 +45,7 @@ def get_image(data):
 class Sprite(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height):
         super().__init__()
-        self.rect = pygame.Rect(x, y, width, height)
+        self.rect = pygame.Rect(x, -y, width, height)
         self.image = get_image(None)
 
         self.animation_frame_index, self.animation_index, self.animation_flag, self.animations_len = 0, 0, False, 0
@@ -86,8 +86,8 @@ class Sprite(pygame.sprite.Sprite):
         self.animations_mask.append(None)
         self.animations_mask_flag.append(None)
 
-        self.animations_frames.append(None)
-        self.animations_frames_sizes.append(None)
+        self.animations_frames.append([None] * self.animations_len[self.animation_index])
+        self.animations_frames_sizes.append([None] * self.animations_len[self.animation_index])
 
         self.animations_scale.append(None)
         self.animations_scale_flag.append(None)
@@ -95,11 +95,13 @@ class Sprite(pygame.sprite.Sprite):
 
         self.animations_position_politic.append(None)
         self.animations_position_politic_flag.append(None)
-        self.animations_position_add.append(None)
+        self.animations_position_add.append([None] * self.animations_len[self.animation_index])
         self.set_animation_position_politic(-1, position_politic_x, position_politic_y)
 
         if activate:
             self.set_animation_activate(-1)
+
+        self.update(0)
 
     def delete_animation(self, index):
         self.animations_images.pop(index)
@@ -125,6 +127,24 @@ class Sprite(pygame.sprite.Sprite):
 
         if self.animation_index == index and self.animation_flag:
             self.set_animation_deactivate()
+
+    def set_positions(self, x=None, y=None):
+        index = self.get_animation_frame_index()
+        if x is not None:
+            self.rect.x = x + self.animations_position_add[self.animation_index][index][0]
+        if y is not None:
+            self.rect.y = -y + self.animations_position_add[self.animation_index][index][1]
+
+    def add_positions(self, x=None, y=None):
+        if x is not None:
+            self.rect.x += x
+        if y is not None:
+            self.rect.y -= y
+
+    def get_positions(self):
+        index = self.get_animation_frame_index()
+        return self.rect.x - self.animations_position_add[self.animation_index][index][0], \
+               -(self.rect.y - self.animations_position_add[self.animation_index][index][1])
 
     def set_animation_images(self, index, images):
         self.animations_images[index] = [get_image(n) for n in images]
@@ -189,14 +209,6 @@ class Sprite(pygame.sprite.Sprite):
 
     def get_animation_position_politic(self, index):
         return self.animations_position_politic[index]
-
-    def _lists_update(self):
-        if self.animations_frames[self.animation_index] is None:
-            self.animations_frames[self.animation_index] = [None] * self.animations_len[self.animation_index]
-            self.animations_frames_sizes[self.animation_index] = [None] * self.animations_len[self.animation_index]
-            self.animations_position_add[self.animation_index] = [None] * self.animations_len[self.animation_index]
-            return True
-        return False
 
     def _scale_frames_update(self):
         if self.animations_scale_flag[self.animation_index]:
@@ -292,7 +304,6 @@ class Sprite(pygame.sprite.Sprite):
         return new_list
 
     def update(self, number, list_objects=()):
-        self._lists_update()  # добавляем None в списки новых animations
         frame_index = self._animation_frame_index_update(number)  # вычисляем текущий индекс анимации
         self._scale_frames_update()  # меняем масштаб frames
         self._position_politic_frames_update()  # устанавливаем значения сдвигов на основе politic position
@@ -386,10 +397,6 @@ class Camera:
                  min_scale=0.5, max_scale=1.5, now_scale=1):
         self.sprites, self.index_list = [], []
 
-        self.width, self.height = None, None
-        self.set_width(width)
-        self.set_height(height)
-
         self.min_x, self.max_x, self.now_x = None, None, 0
         self.set_min_x(min_x)
         self.set_max_x(max_x)
@@ -405,6 +412,11 @@ class Camera:
         self.set_max_scale(max_scale)
         self.set_now_scale(now_scale)
 
+        self.width, self.height = None, None
+        self.center_x, self.center_y = None, None
+        self.set_width(width)
+        self.set_height(height)
+
     def add_sprite(self, sprite):
         self.sprites.append(sprite)
         self.index_list = range(len(self.sprites))
@@ -415,9 +427,17 @@ class Camera:
 
     def set_width(self, width):
         self.width = width
+        self.center_x = self.now_x + self.width // 2
 
     def set_height(self, height):
         self.height = height
+        self.center_y = self.now_y - self.height // 2
+
+    def get_width(self):
+        return self.width
+
+    def get_height(self):
+        return self.height
 
     def set_min_x(self, number):
         self.min_x = number
@@ -477,6 +497,7 @@ class Camera:
         if x != 0:
             self.now_x += x
             if self.now_x >= self.min_x and self.now_x <= self.max_x:
+                self.center_x += x
                 for n in self.index_list:
                     self.sprites[n].rect.x -= x
             else:
@@ -486,8 +507,9 @@ class Camera:
         if y != 0:
             self.now_y += y
             if self.now_y >= self.min_y and self.now_y <= self.max_y:
+                self.center_y += y
                 for n in self.index_list:
-                    self.sprites[n].rect.y -= y
+                    self.sprites[n].rect.y += y
             else:
                 self.now_y -= y
 
@@ -497,13 +519,16 @@ class Camera:
             if new_scale >= self.min_scale and new_scale <= self.max_scale:
                 for n in self.index_list:
                     index = self.sprites[n].get_animation_index()
-                    scale = self.sprites[n].get_animation_scale(index)
-                    index_frame = self.sprites[n].get_animation_frame_index()
-                    last_sizes = self.sprites[n].get_animation_frames_sizes(index)[index_frame]
-                    new_scale_x, new_scale_y = scale[0] / self.now_scale * new_scale, \
-                                               scale[1] / self.now_scale * new_scale
+                    scale_x, scale_y = self.sprites[n].get_animation_scale(index)
+                    new_scale_x, new_scale_y = scale_x / self.now_scale * new_scale, scale_y / self.now_scale * new_scale
                     self.sprites[n].set_animation_scale(index, new_scale_x, new_scale_y)
-                    new_sizes = self.sprites[n].get_animation_frames_sizes(index)[index_frame]
+
+                    pos_x, pos_y = self.sprites[n].get_positions()
+                    x, y = pos_x - self.center_x + self.now_x, pos_y - self.center_y + self.now_y
+                    new_x, new_y = x / self.now_scale * new_scale, y / self.now_scale * new_scale
+                    self.sprites[n].add_positions(new_x - x, new_y - y)
+
+                    self.sprites[n]._scale_frames_update()
                 self.now_scale = new_scale
 
     def update(self, x, y, scale):
@@ -518,19 +543,21 @@ class MainWindow:
         self.window = pygame.display.Info()
         self.width_window, self.height_window = self.window.current_w, self.window.current_h
         self.screen = pygame.display.set_mode((self.width_window // 1.5, self.height_window // 1.5))
-        self.camera = Camera(self.width_window, self.height_window, min_x=-500, max_x=500, min_y=-500, max_y=500)
+        self.camera = Camera(self.width_window // 1.5, self.height_window // 1.5, min_x=-500, max_x=500, min_y=-500, max_y=500)
 
         self.last_time, self.step_time, self.number_frames_time = time.time(), 0.001, 0
 
         self.all_sprites = pygame.sprite.Group()
 
-        entity = Entity(25, 25, "data\\frames_2\\Spider_1 — копия (5).png")
+        entity = Entity(0, 0, "data\\frames_2\\Spider_1 — копия (5).png")
+        entity.set_positions(40, 20)
+        entity.add_positions(-40, -20)
         entity.add(self.all_sprites)
         entity.set_vector(135)
         entity.set_speed(0)
         self.camera.add_sprite(entity)
 
-        entity2 = Entity(425, 25, "data\\frames_2\\Spider_1 — копия (5).png")
+        entity2 = Entity(500, 0, "data\\frames_2\\Spider_1 — копия (5).png")
         entity2.add(self.all_sprites)
         entity2.set_vector(225)
         entity2.set_speed(0)
@@ -550,8 +577,8 @@ class MainWindow:
 
             x = 1 * self.number_frames_time if 7 in self.keyboard_keys else \
                 (-1 * self.number_frames_time if 4 in self.keyboard_keys else 0)
-            y = 1 * self.number_frames_time if 22 in self.keyboard_keys else \
-                (-1 * self.number_frames_time if 26 in self.keyboard_keys else 0)
+            y = 1 * self.number_frames_time if 26 in self.keyboard_keys else \
+                (-1 * self.number_frames_time if 22 in self.keyboard_keys else 0)
             up_and_down = 0.05 * self.number_frames_time \
                 if self.mouse_up else (-0.05 * self.number_frames_time if self.mouse_down else 0)
             self.camera.update(x, y, up_and_down)
