@@ -383,6 +383,81 @@ class Object(Sprite):
         pass
 
 
+class Font:
+    def __init__(self, *args, **kwargs):
+        self.font = pygame.font.SysFont(*args, **kwargs)
+
+    def render(self, *args, **kwargs):
+        return self.font.render(*args, **kwargs)
+
+
+class Text:
+    def __init__(self, text, font, x=0, y=0, smooth=True, color=(0, 0, 0)):
+        self.text = text
+        self.font = font
+        self.smooth = smooth
+        self.color = color
+        self.x, self.y = x, -y
+        self.flag_obgect = False
+        self.object = None
+
+    def set_text(self, text):
+        self.text = text
+        self.flag_obgect = False
+
+    def get_text(self):
+        return self.text
+
+    def set_font(self, font):
+        self.font = font
+        self.flag_obgect = False
+
+    def get_font(self):
+        return self.font
+
+    def set_smooth(self, smooth):
+        self.smooth = smooth
+        self.flag_obgect = False
+
+    def get_smooth(self):
+        return self.smooth
+
+    def set_color(self, color):
+        self.color = color
+        self.flag_obgect = False
+
+    def get_color(self):
+        return self.color
+
+    def set_x(self, x):
+        self.x = x
+
+    def set_y(self, y):
+        self.y = -y
+
+    def set_positiolns(self, x, y):
+        self.set_x(x)
+        self.set_y(y)
+
+    def get_x(self):
+        return self.x
+
+    def get_y(self):
+        return self.y
+
+    def get_positions(self):
+        return self.x, self.y
+
+    def _create_object(self):
+        self.object = self.font.render(self.text, self.smooth, self.color)
+        self.flag_obgect = True
+
+    def draw(self, screen):
+        if not self.flag_obgect:
+            self._create_object()
+        screen.blit(self.object, (self.x, self.y))
+
+
 class Button:
     def __init__(self, x, y):
         self.rect = pygame.Rect(x, y, 25, 25)
@@ -514,6 +589,26 @@ class Camera:
         self._scale_update(scale)
 
 
+class Group(pygame.sprite.Group):
+    def __init__(self):
+        super().__init__()
+        self.texts = []
+
+    def add(self, *args):
+        if len(args) > 0:
+            if type(args[0]) == Text:
+                self.texts.append(args[0])
+            else:
+                super().add(*args)
+        else:
+            super().add(*args)
+
+    def draw(self, *args, **kwargs):
+        super().draw(*args, **kwargs)
+        for n in self.texts:
+            n.draw(args[0])
+
+
 class MainWindow:
     def __init__(self):
         pygame.init()
@@ -524,22 +619,26 @@ class MainWindow:
 
         self.last_time, self.step_time, self.number_frames_time = time.time(), 0.001, 0
 
-        self.all_sprites = pygame.sprite.Group()
+        self.group = Group()
 
-        entity = Entity(0, 0, "data\\frames_2\\Spider_1 — копия (5).png")
-        entity.set_positions(100, 10)
-        entity.add_positions(-100, -10)
-        self.all_sprites.add(entity)
-        entity.set_vector(135)
-        entity.set_speed(0.1)
-        self.camera.add_sprite(entity)
+        self.entity = Entity(0, 0, "data\\frames_2\\Spider_1 — копия (5).png")
+        self.entity.set_positions(100, 10)
+        self.entity.add_positions(-100, -10)
+        self.group.add(self.entity)
+        self.entity.set_vector(135)
+        self.entity.set_speed(0.1)
+        self.camera.add_sprite(self.entity)
 
-        entity2 = Entity(500, 0, "data\\frames_2\\Spider_1 — копия (5).png")
-        self.all_sprites.add(entity2)
-        entity2.set_vector(225)
-        entity2.set_speed(0)
-        self.camera.add_sprite(entity2)
+        self.entity2 = Entity(500, 0, "data\\frames_2\\Spider_1 — копия (5).png")
+        self.group.add(self.entity2)
+        self.entity2.set_vector(225)
+        self.entity2.set_speed(0)
+        self.camera.add_sprite(self.entity2)
         # button = Button(0, 0)
+
+        font = Font(None, 40)
+        text = Text("Text", font)
+        self.group.add(text)
 
         self.running = True
         self.mouse_x, self.mouse_y = -1, -1
@@ -549,21 +648,14 @@ class MainWindow:
         self.keyboard_keys = []
 
         while self.running:
-            self._get_data()
-            self._get_number_frames_time()
+            self._get_data()  # получаем данные от клавиатуры и мышки
+            x, y, scale = self._edit_data()  # обрабатываем данные
+            self._get_number_frames_time()  # количество итераций за прошедшее время
 
-            x = 1 * self.number_frames_time if 7 in self.keyboard_keys else \
-                (-1 * self.number_frames_time if 4 in self.keyboard_keys else 0)
-            y = 1 * self.number_frames_time if 26 in self.keyboard_keys else \
-                (-1 * self.number_frames_time if 22 in self.keyboard_keys else 0)
-            up_and_down = 0.05 if self.mouse_up else (-0.05 if self.mouse_down else 0)
-            self.camera.update(x, y, up_and_down)
-            if self.number_frames_time:
-                entity.update(self.number_frames_time)
-                entity2.update(self.number_frames_time)
-            # button.update(self.mouse_x, self.mouse_y, self.mouse_left)
+            self.camera.update(x, y, scale)  # обновляем камеру
+            self._updates_sprites()  # обновляем спрайты
 
-            self._draw_all()
+            self._draw_all()  # рисуем все
         self._exit()
 
     def _exit(self):
@@ -571,8 +663,22 @@ class MainWindow:
 
     def _draw_all(self):
         self.screen.fill((255, 255, 255))
-        self.all_sprites.draw(self.screen)
+        self.group.draw(self.screen)
         pygame.display.flip()
+
+    def _updates_sprites(self):
+        if self.number_frames_time:
+            self.entity.update(self.number_frames_time)
+            self.entity2.update(self.number_frames_time)
+
+    def _edit_data(self):
+        x = 1 * self.number_frames_time if 7 in self.keyboard_keys else \
+            (-1 * self.number_frames_time if 4 in self.keyboard_keys else 0)
+        y = 1 * self.number_frames_time if 26 in self.keyboard_keys else \
+            (-1 * self.number_frames_time if 22 in self.keyboard_keys else 0)
+        up_and_down = 0.05 * self.number_frames_time if self.mouse_up else \
+            (-0.05 * self.number_frames_time if self.mouse_down else 0)
+        return x, y, up_and_down
 
     def _get_data(self):
         self.mouse_up, self.mouse_down = False, False
