@@ -346,6 +346,7 @@ class Sprite(pygame.sprite.Sprite):
         for n in list_objects:
             if pygame.sprite.collide_mask(self, n):
                 new_list.append(n)
+                print(True)
         return new_list
 
     def update(self, number, list_objects=()):
@@ -381,6 +382,33 @@ class Entity(Sprite):
 class Object(Sprite):
     def __init__(self):
         pass
+
+
+class Points(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.Surface((1, 1))
+        self.rect = pygame.Rect(x, y, 1, 1)
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def set_x(self, x):
+        self.rect.x = x
+
+    def set_y(self, y):
+        self.rect.y = y
+
+    def set_positions(self, x, y):
+        self.set_x(x)
+        self.set_y(y)
+
+    def get_x(self):
+        return self.rect.x
+
+    def get_y(self):
+        return self.rect.y
+
+    def get_positions(self):
+        return self.get_x(), self.get_y()
 
 
 class Font:
@@ -448,37 +476,48 @@ class Text:
     def get_positions(self):
         return self.x, self.y
 
+    def get_width(self):
+        self._create_object()
+        return self.object.get_width()
+
+    def get_height(self):
+        self._create_object()
+        return self.object.get_height()
+
     def _create_object(self):
-        self.object = self.font.render(self.text, self.smooth, self.color)
-        self.flag_obgect = True
+        if not self.flag_obgect:
+            self.object = self.font.render(self.text, self.smooth, self.color)
+            self.flag_obgect = True
 
     def draw(self, screen):
-        if not self.flag_obgect:
-            self._create_object()
+        self._create_object()
         screen.blit(self.object, (self.x, self.y))
 
 
 class Button:
     def __init__(self, x, y):
-        self.rect = pygame.Rect(x, y, 25, 25)
-        self.passive_image = None
-        self.select_image = None
-        self.active_image = None
+        self.sprite = Sprite(x, y, 1, 1)
+        for _ in range(3):
+            self.sprite.add_animation([None])
+        self.index_passive_animation, self.index_select_animation, self.index_active_animation = 0, 1, 2
 
-        self.sprite = pygame.sprite.Sprite()
-        self.sprite.image = get_image(None)
+    def set_passive_animation(self, *args, **kwargs):
+        self.sprite.delete_animation(self.index_passive_animation)
+        self.sprite.add_animation(*args, **kwargs)
+        self.index_passive_animation = self.sprite.get_animations_len() - 1
 
-    def set_passive_image(self, image):
-        self.passive_image = image
+    def set_select_animation(self, *args, **kwargs):
+        self.sprite.delete_animation(self.index_select_animation)
+        self.sprite.add_animation(*args, **kwargs)
+        self.index_select_animation = self.sprite.get_animations_len() - 1
 
-    def set_select_image(self, image):
-        self.select_image = image
+    def set_active_animation(self, *args, **kwargs):
+        self.sprite.delete_animation(self.index_active_animation)
+        self.sprite.add_animation(*args, **kwargs)
+        self.index_active_animation = self.sprite.get_animations_len() - 1
 
-    def set_active_image(self, image):
-        self.active_image = image
-
-    def update(self, x, y, key):
-        pass
+    def update(self, number, x, y):
+        self.sprite.update(number)
 
 
 class Camera:
@@ -626,19 +665,23 @@ class MainWindow:
         self.entity.add_positions(-100, -10)
         self.group.add(self.entity)
         self.entity.set_vector(135)
-        self.entity.set_speed(0.1)
+        self.entity.set_speed(0)
         self.camera.add_sprite(self.entity)
 
-        self.entity2 = Entity(500, 0, "data\\frames_2\\Spider_1 — копия (5).png")
+        self.entity2 = Entity(self.width_window // 3, -self.height_window // 3,
+                              "data\\frames_2\\Spider_1 — копия (5).png")
         self.group.add(self.entity2)
         self.entity2.set_vector(225)
         self.entity2.set_speed(0)
-        self.camera.add_sprite(self.entity2)
+        #self.camera.add_sprite(self.entity2)
         # button = Button(0, 0)
+
+        self.mouse_point = Points(0, 0)
+        self.group.add(self.mouse_point)
 
         font = Font(None, 40)
         text = Text("Text", font)
-        self.group.add(text)
+        #self.group.add(text)
 
         self.running = True
         self.mouse_x, self.mouse_y = -1, -1
@@ -652,6 +695,7 @@ class MainWindow:
             x, y, scale = self._edit_data()  # обрабатываем данные
             self._get_number_frames_time()  # количество итераций за прошедшее время
 
+            self.mouse_point.set_positions(self.mouse_x, self.mouse_y)
             self.camera.update(x, y, scale)  # обновляем камеру
             self._updates_sprites()  # обновляем спрайты
 
@@ -668,7 +712,7 @@ class MainWindow:
 
     def _updates_sprites(self):
         if self.number_frames_time:
-            self.entity.update(self.number_frames_time)
+            self.entity.update(self.number_frames_time, [self.mouse_point])
             self.entity2.update(self.number_frames_time)
 
     def _edit_data(self):
