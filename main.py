@@ -96,19 +96,19 @@ class Sprite(pygame.sprite.Sprite):
 
         self.animations_rotation.append(None)
         self.animations_rotation_flag.append(None)
-        self.animations_rotation_frames.append([None] * self.animations_len[self.animation_index])
-        self.animations_rotation_frames_sizes.append([None] * self.animations_len[self.animation_index])
+        self.animations_rotation_frames.append([None] * self.animations_len[index])
+        self.animations_rotation_frames_sizes.append([None] * self.animations_len[index])
         self.set_animation_rotation(index, rotation)
 
         self.animations_scale.append(None)
         self.animations_scale_flag.append(None)
-        self.animations_scale_frames.append([None] * self.animations_len[self.animation_index])
-        self.animations_scale_frames_sizes.append([None] * self.animations_len[self.animation_index])
+        self.animations_scale_frames.append([None] * self.animations_len[index])
+        self.animations_scale_frames_sizes.append([None] * self.animations_len[index])
         self.set_animation_scale(index, width, height)
 
         self.animations_position_politic.append(None)
         self.animations_position_politic_flag.append(None)
-        self.animations_position_add.append([None] * self.animations_len[self.animation_index])
+        self.animations_position_add.append([None] * self.animations_len[index])
         self.set_animation_position_politic(index, position_politic_x, position_politic_y)
 
         if activate:
@@ -117,6 +117,10 @@ class Sprite(pygame.sprite.Sprite):
         self.update(0)
 
     def delete_animation(self, index):
+        if self.animation_index == index and self.animation_flag:
+            self.set_animation_frame_index(self.get_animation_len(index) - 1)
+            self.set_animation_deactivate()
+
         self.animations_images.pop(index)
         self.animations_images_sizes.pop(index)
         self.animations_len.pop(index)
@@ -141,10 +145,6 @@ class Sprite(pygame.sprite.Sprite):
         self.animations_position_politic.pop(index)
         self.animations_position_politic_flag.pop(index)
         self.animations_position_add.pop(index)
-
-        if self.animation_index == index and self.animation_flag:
-            self.set_animation_frame_index(self.get_animation_len(index) - 1)
-            self.set_animation_deactivate()
 
     def set_positions(self, x=None, y=None):
         index = int(self.get_animation_frame_index())
@@ -268,6 +268,13 @@ class Sprite(pygame.sprite.Sprite):
     def get_speed(self):
         return self.speed
 
+    def get_intersections(self, list_objects):
+        new_list = []
+        for n in list_objects:
+            if pygame.sprite.collide_mask(self, n):
+                new_list.append(n)
+        return new_list
+
     def _rotation_frames_update(self):
         if self.animations_rotation_flag[self.animation_index]:
             images = self.animations_images[self.animation_index]
@@ -374,15 +381,7 @@ class Sprite(pygame.sprite.Sprite):
             self.step_y -= number
             self.rect.y -= number
 
-    def _intersections(self, list_objects):
-        new_list = []
-        for n in list_objects:
-            if pygame.sprite.collide_mask(self, n):
-                new_list.append(n)
-                print(True)
-        return new_list
-
-    def update(self, number, list_objects=()):
+    def update(self, number):
         frame_index = self._animation_frame_index_update(number)  # вычисляем текущий индекс анимации
         self._rotation_frames_update()  # поворачиваем изображение
         self._scale_frames_update()  # меняем масштаб frames
@@ -390,8 +389,7 @@ class Sprite(pygame.sprite.Sprite):
         self._mask_update()  # обновляем маску
         self._frame_update(frame_index)  # обновляем frame
         self._animation_update(frame_index)  # активируем/переактивируем/деактивируем анимацию
-        self._run_update(number)
-        self._intersections(list_objects)  # вычисляем объекты с которыми было пересечение
+        self._run_update(number)  # вычисляем положение объекта
 
 
 class Entity(Sprite):
@@ -523,35 +521,118 @@ class Text:
             self.object = self.font.render(self.text, self.smooth, self.color)
             self.flag_obgect = True
 
-    def draw(self, screen):
+    def update(self):
         self._create_object()
+
+    def draw(self, screen):
         screen.blit(self.object, (self.x, self.y))
 
 
 class Button:
-    def __init__(self, x, y):
-        self.sprite = Sprite(x, y, 1, 1)
+    def __init__(self):
+        self.sprite = Sprite(0, 0, 1, 1)
         for _ in range(3):
             self.sprite.add_animation([None])
         self.index_passive_animation, self.index_select_animation, self.index_active_animation = 0, 1, 2
+        self.passive_text, self.select_text, self.active_text = None, None, None
+        self.index_now_animation = 0
+        self.methods = [None, None, None]
 
     def set_passive_animation(self, *args, **kwargs):
         self.sprite.delete_animation(self.index_passive_animation)
         self.sprite.add_animation(*args, **kwargs)
+        if self.index_select_animation > self.index_passive_animation:
+            self.index_select_animation -= 1
+        if self.index_active_animation > self.index_passive_animation:
+            self.index_active_animation -= 1
         self.index_passive_animation = self.sprite.get_animations_len() - 1
 
     def set_select_animation(self, *args, **kwargs):
         self.sprite.delete_animation(self.index_select_animation)
         self.sprite.add_animation(*args, **kwargs)
+        if self.index_passive_animation > self.index_select_animation:
+            self.index_passive_animation -= 1
+        if self.index_active_animation > self.index_select_animation:
+            self.index_active_animation -= 1
         self.index_select_animation = self.sprite.get_animations_len() - 1
 
     def set_active_animation(self, *args, **kwargs):
         self.sprite.delete_animation(self.index_active_animation)
         self.sprite.add_animation(*args, **kwargs)
+        if self.index_passive_animation > self.index_active_animation:
+            self.index_passive_animation -= 1
+        if self.index_select_animation > self.index_active_animation:
+            self.index_select_animation -= 1
         self.index_active_animation = self.sprite.get_animations_len() - 1
 
-    def update(self, number, x, y):
+    def set_passive_text(self, *args, **kwargs):
+        self.passive_text = Text(*args, **kwargs)
+
+    def set_select_text(self, *args, **kwargs):
+        self.select_text = Text(*args, **kwargs)
+
+    def set_active_text(self, *args, **kwargs):
+        self.active_text = Text(*args, **kwargs)
+
+    def set_passive(self):
+        self.sprite.set_animation_frame_index(0)
+        self.sprite.set_animation_activate(self.index_passive_animation)
+        self.index_now_animation = 0
+
+    def set_select(self):
+        self.sprite.set_animation_frame_index(0)
+        self.sprite.set_animation_activate(self.index_select_animation)
+        self.index_now_animation = 1
+
+    def set_active(self):
+        self.sprite.set_animation_frame_index(0)
+        self.sprite.set_animation_activate(self.index_active_animation)
+        self.index_now_animation = 2
+
+    def set_passive_method(self, method):
+        self.methods[0] = method
+
+    def set_select_method(self, method):
+        self.methods[1] = method
+
+    def set_active_method(self, method):
+        self.methods[2] = method
+
+    def _choice_image(self, mouse_point, key_down):
+        answer = self.sprite.get_intersections([mouse_point])
+        if mouse_point.get_x() >= 0 and mouse_point.get_y() >= 0 and len(answer) > 0:
+            if key_down:
+                if self.index_now_animation != 2:
+                    self.set_active()
+            else:
+                if self.index_now_animation != 1:
+                    self.set_select()
+        else:
+            if self.index_now_animation != 0:
+                self.set_passive()
+
+    def update(self, number, mouse_point, key_down):
+        self._choice_image(mouse_point, key_down)
         self.sprite.update(number)
+        if self.passive_text is not None:
+            self.passive_text.update()
+        if self.select_text is not None:
+            self.select_text.update()
+        if self.active_text is not None:
+            self.active_text.update()
+
+    def draw(self, screen):
+        if self.index_now_animation == 0:
+            if self.passive_text is not None:
+                self.passive_text.draw(screen)
+        elif self.index_now_animation == 1:
+            if self.select_text is not None:
+                self.select_text.draw(screen)
+        else:
+            if self.active_text is not None:
+                self.active_text.draw(screen)
+        if self.methods[self.index_now_animation] is not None:
+            self.methods[self.index_now_animation]()
 
 
 class Camera:
@@ -666,11 +747,16 @@ class Group(pygame.sprite.Group):
     def __init__(self):
         super().__init__()
         self.texts = []
+        self.buttons = []
 
     def add(self, *args):
         if len(args) > 0:
-            if type(args[0]) == Text:
+            type_args = type(args[0])
+            if type_args == Text:
                 self.texts.append(args[0])
+            elif type_args == Button:
+                self.buttons.append(args[0])
+                self.add(args[0].sprite)
             else:
                 super().add(*args)
         else:
@@ -679,6 +765,8 @@ class Group(pygame.sprite.Group):
     def draw(self, *args, **kwargs):
         super().draw(*args, **kwargs)
         for n in self.texts:
+            n.draw(args[0])
+        for n in self.buttons:
             n.draw(args[0])
 
 
@@ -694,31 +782,16 @@ class MainWindow:
 
         self.group = Group()
 
-        self.entity = Entity(0, 0, "data\\frames_2\\Spider_1 — копия (5).png")
-        self.entity.set_positions(100, 10)
-        self.entity.add_positions(-100, -10)
-        self.entity.set_animation_rotation(0, 45)
-        self.group.add(self.entity)
-        self.entity.set_vector(135)
-        self.entity.set_speed(0)
-        self.entity.set_animation_scale(0, 0.1, 0.1)
-        self.camera.add_sprite(self.entity)
-
-        self.entity2 = Entity(self.width_window // 3, -self.height_window // 3,
-                              "data\\frames_2\\Spider_1 — копия (5).png")
-        self.group.add(self.entity2)
-        self.entity2.set_vector(225)
-        self.entity2.set_speed(0)
-        self.entity2.set_animation_scale(0, 0.1, 0.1)
-        #self.camera.add_sprite(self.entity2)
-        # button = Button(0, 0)
-
         self.mouse_point = Points(0, 0)
         self.group.add(self.mouse_point)
 
-        font = Font(None, 40)
-        text = Text("Text", font)
-        #self.group.add(text)
+        self.button = Button()
+        self.group.add(self.button)
+        self.button.set_active_method(self.met_1)
+        self.button.set_select_animation(["data\\frames_2\\button_2_1.png"], 100)
+        self.button.set_active_animation(["data\\frames_2\\button_3_1.png"], 100)
+        self.button.set_passive_animation(["data\\frames_2\\button_1_1.png", "data\\frames_2\\button_1_2.png"],
+                                          0.01, loop=True, activate=True)
 
         self.running = True
         self.mouse_x, self.mouse_y = -1, -1
@@ -739,6 +812,9 @@ class MainWindow:
             self._draw_all()  # рисуем все
         self._exit()
 
+    def met_1(self):
+        print(45)
+
     def _exit(self):
         pygame.quit()
 
@@ -748,9 +824,7 @@ class MainWindow:
         pygame.display.flip()
 
     def _updates_sprites(self):
-        if self.number_frames_time:
-            self.entity.update(self.number_frames_time, [self.mouse_point])
-            self.entity2.update(self.number_frames_time)
+        self.button.update(self.number_frames_time, self.mouse_point, True if self.mouse_left else False)
 
     def _edit_data(self):
         x = 1 * self.number_frames_time if 7 in self.keyboard_keys else \
