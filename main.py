@@ -2,10 +2,8 @@ import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
 import time
-import random
 import sys
 import math
-
 
 def get_image(data):
     type_data = type(data)
@@ -51,16 +49,23 @@ class Sprite(pygame.sprite.Sprite):
         self.animation_frame_index, self.animation_index, self.animation_flag = 0, 0, False
         self.animations_images = []  # список исходных изображений для каждой анимации
         self.animations_images_sizes = []  # список размеров исходных изображений для каждой анимации
+
         self.animations_len = []  # количество image/frame/mask для каждой анимации
         self.animations_speed = []  # скорость смены кадров для каждой анимации
         self.animations_loop = []  # флаги цикличности анимаций (повторять ли анимацию после ее завершения)
+
         self.animations_mask = []  # маски кадров для каждой анимации
         self.animations_mask_flag = []  # нужно ли обновить masks для frames
-        self.animations_frames = []  # готовые кадры для отрисовки анимаций
-        self.animations_frames_sizes = []  # размер frame по высоте и ширине для каждой анимации
+
+        self.animations_rotation = []  # поворот для каждой анимации
+        self.animations_rotation_flag = []  # спиcок флагов уже измененных/неизмененных rotation frame для каждой анимации
+        self.animations_rotation_frames = []  # повернутые изображения
+        self.animations_rotation_frames_sizes = []  # размер повернутых изображений по высоте и ширине для каждой анимации
 
         self.animations_scale = []  # масштаб для каждой анимации
         self.animations_scale_flag = []  # спиcок флагов уже измененных/неизмененных scale frame для каждой анимации
+        self.animations_scale_frames = []  # готовые кадры для отрисовки анимаций
+        self.animations_scale_frames_sizes = []  # размер frame по высоте и ширине для каждой анимации
 
         self.animations_position_politic = []  # политика синхронизации frames для каждой анимации
         self.animations_position_politic_flag = []  # список флагов измененных/неизмененных position politic frame для каждой анимации
@@ -72,36 +77,42 @@ class Sprite(pygame.sprite.Sprite):
         self.step_x, self.step_y = 0, 0  # переменные перемещения спрайта
         self.vector_flag, self.speed_flag = False, False  # флаги наличия или отсутствия параметров
 
-    def add_animation(self, images, speed=0.01, loop=False, width=1, height=1,
+    def add_animation(self, images, speed=0.01, loop=False, width=1, height=1, rotation=0,
                       position_politic_x=0, position_politic_y=0, activate=False):
+        index = self.get_animations_len()
         self.animations_images.append(None)
         self.animations_images_sizes.append(None)
         self.animations_len.append(None)
-        self.set_animation_images(-1, images)
+        self.set_animation_images(index, images)
 
         self.animations_speed.append(None)
-        self.set_animation_speed(-1, speed)
+        self.set_animation_speed(index, speed)
 
         self.animations_loop.append(None)
-        self.set_animation_loop(-1, loop)
+        self.set_animation_loop(index, loop)
 
         self.animations_mask.append(None)
         self.animations_mask_flag.append(None)
 
-        self.animations_frames.append([None] * self.animations_len[self.animation_index])
-        self.animations_frames_sizes.append([None] * self.animations_len[self.animation_index])
+        self.animations_rotation.append(None)
+        self.animations_rotation_flag.append(None)
+        self.animations_rotation_frames.append([None] * self.animations_len[self.animation_index])
+        self.animations_rotation_frames_sizes.append([None] * self.animations_len[self.animation_index])
+        self.set_animation_rotation(index, rotation)
 
         self.animations_scale.append(None)
         self.animations_scale_flag.append(None)
-        self.set_animation_scale(-1, width, height)
+        self.animations_scale_frames.append([None] * self.animations_len[self.animation_index])
+        self.animations_scale_frames_sizes.append([None] * self.animations_len[self.animation_index])
+        self.set_animation_scale(index, width, height)
 
         self.animations_position_politic.append(None)
         self.animations_position_politic_flag.append(None)
         self.animations_position_add.append([None] * self.animations_len[self.animation_index])
-        self.set_animation_position_politic(-1, position_politic_x, position_politic_y)
+        self.set_animation_position_politic(index, position_politic_x, position_politic_y)
 
         if activate:
-            self.set_animation_activate(-1)
+            self.set_animation_activate(index)
 
         self.update(0)
 
@@ -117,21 +128,26 @@ class Sprite(pygame.sprite.Sprite):
         self.animations_mask.pop(index)
         self.animations_mask_flag.pop(index)
 
-        self.animations_frames.pop(index)
-        self.animations_frames_sizes.pop(index)
+        self.animations_rotation.pop(index)
+        self.animations_rotation_flag.pop(index)
+        self.animations_rotation_frames.pop(index)
+        self.animations_rotation_frames_sizes.pop(index)
 
         self.animations_scale.pop(index)
         self.animations_scale_flag.pop(index)
+        self.animations_scale_frames.pop(index)
+        self.animations_scale_frames_sizes.pop(index)
 
         self.animations_position_politic.pop(index)
         self.animations_position_politic_flag.pop(index)
         self.animations_position_add.pop(index)
 
         if self.animation_index == index and self.animation_flag:
+            self.set_animation_frame_index(self.get_animation_len(index) - 1)
             self.set_animation_deactivate()
 
     def set_positions(self, x=None, y=None):
-        index = self.get_animation_frame_index()
+        index = int(self.get_animation_frame_index())
         if x is not None:
             self.step_x = x + self.animations_position_add[self.animation_index][index][0]
             self.rect.x = 0
@@ -146,7 +162,7 @@ class Sprite(pygame.sprite.Sprite):
             self.step_y += y
 
     def get_positions(self):
-        index = self.get_animation_frame_index()
+        index = int(self.get_animation_frame_index())
         return self.rect.x - self.animations_position_add[self.animation_index][index][0] + self.step_x, \
                -self.rect.y - self.animations_position_add[self.animation_index][index][1] - self.step_y
 
@@ -176,39 +192,50 @@ class Sprite(pygame.sprite.Sprite):
     def get_animation_loop(self, index):
         return self.animations_loop[index]
 
-    def set_animation_scale(self, index, width=1, height=1):
+    def set_animation_rotation(self, index, rotation):
+        self.animations_rotation[index] = rotation
+        self.animations_rotation_flag[index] = True
+
+    def get_animation_rotation(self, index):
+        return self.animations_rotation[index]
+
+    def get_animation_rotation_frames_sizes(self, index):
+        return self.animations_rotation_frames_sizes[index]
+
+    def set_animation_scale(self, index, width=1.0, height=1.0):
         self.animations_scale[index] = [width, height]
         self.animations_scale_flag[index] = True
 
     def get_animation_scale(self, index):
         return self.animations_scale[index]
 
-    def get_animation_frames_sizes(self, index):
-        return self.animations_frames_sizes[index]
+    def get_animation_scale_frames_sizes(self, index):
+        return self.animations_scale_frames_sizes[index]
 
     def get_animations_len(self):
         return len(self.animations_images)
 
-    def set_animation_activate(self, index):
-        self.animation_flag = True
-        self.animation_index = index
-        self.animation_frame_index = 0
-
-    def set_animation_deactivate(self):
-        self.animation_flag = False
-        self.animation_frame_index = self.animations_len[self.animation_index] - 1
-
-    def get_animation_index(self):
-        return self.animation_index
+    def set_animation_frame_index(self, index):
+        self.animation_frame_index = index
 
     def get_animation_frame_index(self):
         if self.animation_frame_index < self.animations_len[self.animation_index]:
-            return int(self.animation_frame_index)
+            return self.animation_frame_index
         else:
             return self.animations_len[self.animation_index] - 1
 
+    def set_animation_activate(self, index):
+        self.animation_flag = True
+        self.animation_index = index
+
+    def set_animation_deactivate(self):
+        self.animation_flag = False
+
     def get_animation_activate(self):
         return self.animation_flag
+
+    def get_animation_index(self):
+        return self.animation_index
 
     def set_animation_position_politic(self, index, x=0, y=0):
         self.animations_position_politic[index] = [x, y]
@@ -241,17 +268,32 @@ class Sprite(pygame.sprite.Sprite):
     def get_speed(self):
         return self.speed
 
+    def _rotation_frames_update(self):
+        if self.animations_rotation_flag[self.animation_index]:
+            images = self.animations_images[self.animation_index]
+            rotation = self.animations_rotation[self.animation_index]
+            for index in range(self.animations_len[self.animation_index]):
+                self.animations_rotation_frames[self.animation_index][index] = \
+                    pygame.transform.rotate(images[index], rotation)
+                width = self.animations_rotation_frames[self.animation_index][index].get_width()
+                height = self.animations_rotation_frames[self.animation_index][index].get_height()
+                self.animations_rotation_frames_sizes[self.animation_index][index] = [width, height]
+            self.animations_rotation_flag[self.animation_index] = False
+            self.animations_scale_flag[self.animation_index] = True
+            return True
+        return False
+
     def _scale_frames_update(self):
         if self.animations_scale_flag[self.animation_index]:
-            images = self.animations_images[self.animation_index]
-            sizes = self.animations_images_sizes[self.animation_index]
+            images = self.animations_rotation_frames[self.animation_index]
+            sizes = self.animations_rotation_frames_sizes[self.animation_index]
             scale = self.animations_scale[self.animation_index]
             for index in range(self.animations_len[self.animation_index]):
                 width = int(sizes[index][0] * scale[0])
                 height = int(sizes[index][1] * scale[1])
-                self.animations_frames[self.animation_index][index] = \
+                self.animations_scale_frames[self.animation_index][index] = \
                     pygame.transform.scale(images[index], (width, height))
-                self.animations_frames_sizes[self.animation_index][index] = [width, height]
+                self.animations_scale_frames_sizes[self.animation_index][index] = [width, height]
             self.animations_scale_flag[self.animation_index] = False
             self.animations_position_politic_flag[self.animation_index] = True
             self.animations_mask_flag[self.animation_index] = True
@@ -260,22 +302,11 @@ class Sprite(pygame.sprite.Sprite):
 
     def _position_politic_frames_update(self):
         if self.animations_position_politic_flag[self.animation_index]:
-            sizes = self.animations_frames_sizes[self.animation_index]
+            sizes = self.animations_scale_frames_sizes[self.animation_index]
+            positions_politic = self.animations_position_politic[self.animation_index]
             for index in range(self.animations_len[self.animation_index]):
-                if self.animations_position_politic[self.animation_index][0] == 1:
-                    add_x = -sizes[index][0]
-                elif self.animations_position_politic[self.animation_index][0] == -1:
-                    add_x = 0
-                else:
-                    add_x = -sizes[index][0] // 2
-
-                if self.animations_position_politic[self.animation_index][1] == 1:
-                    add_y = 0
-                elif self.animations_position_politic[self.animation_index][1] == -1:
-                    add_y = sizes[index][1]
-                else:
-                    add_y = sizes[index][1] // 2
-
+                add_x = -sizes[index][0] * ((positions_politic[0] + 1) / 2)
+                add_y = sizes[index][1] * ((positions_politic[1] + 1) / 2)
                 self.animations_position_add[self.animation_index][index] = [add_x, add_y]
             self.animations_position_politic_flag[self.animation_index] = False
             return True
@@ -284,13 +315,13 @@ class Sprite(pygame.sprite.Sprite):
     def _mask_update(self):
         if self.animations_mask_flag[self.animation_index]:
             self.animations_mask[self.animation_index] = \
-                [pygame.mask.from_surface(frame) for frame in self.animations_frames[self.animation_index]]
+                [pygame.mask.from_surface(frame) for frame in self.animations_scale_frames[self.animation_index]]
             self.animations_mask_flag[self.animation_index] = False
 
     def _frame_update(self, index):
         if index is None:
             index = -1
-        self.image = self.animations_frames[self.animation_index][index]
+        self.image = self.animations_scale_frames[self.animation_index][index]
         self.mask = self.animations_mask[self.animation_index][index]
 
         self.step_x -= self.last_add_x
@@ -321,8 +352,10 @@ class Sprite(pygame.sprite.Sprite):
         if self.animation_flag:
             if index is None:
                 if self.animations_loop[self.animation_index]:
+                    self.set_animation_frame_index(0)
                     self.set_animation_activate(self.animation_index)
                 else:
+                    self.set_animation_frame_index(-1)
                     self.set_animation_deactivate()
             return True
         return False
@@ -351,6 +384,7 @@ class Sprite(pygame.sprite.Sprite):
 
     def update(self, number, list_objects=()):
         frame_index = self._animation_frame_index_update(number)  # вычисляем текущий индекс анимации
+        self._rotation_frames_update()  # поворачиваем изображение
         self._scale_frames_update()  # меняем масштаб frames
         self._position_politic_frames_update()  # устанавливаем значения сдвигов на основе politic position
         self._mask_update()  # обновляем маску
@@ -663,9 +697,11 @@ class MainWindow:
         self.entity = Entity(0, 0, "data\\frames_2\\Spider_1 — копия (5).png")
         self.entity.set_positions(100, 10)
         self.entity.add_positions(-100, -10)
+        self.entity.set_animation_rotation(0, 45)
         self.group.add(self.entity)
         self.entity.set_vector(135)
         self.entity.set_speed(0)
+        self.entity.set_animation_scale(0, 0.1, 0.1)
         self.camera.add_sprite(self.entity)
 
         self.entity2 = Entity(self.width_window // 3, -self.height_window // 3,
@@ -673,6 +709,7 @@ class MainWindow:
         self.group.add(self.entity2)
         self.entity2.set_vector(225)
         self.entity2.set_speed(0)
+        self.entity2.set_animation_scale(0, 0.1, 0.1)
         #self.camera.add_sprite(self.entity2)
         # button = Button(0, 0)
 
