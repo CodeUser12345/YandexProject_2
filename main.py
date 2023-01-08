@@ -362,7 +362,7 @@ class Sprite(pygame.sprite.Sprite):
                     self.set_animation_frame_index(0)
                     self.set_animation_activate(self.animation_index)
                 else:
-                    self.set_animation_frame_index(-1)
+                    self.set_animation_frame_index(self.get_animation_len(self.animation_index) - 1)
                     self.set_animation_deactivate()
             return True
         return False
@@ -495,7 +495,7 @@ class Text:
     def set_y(self, y):
         self.y = -y
 
-    def set_positiolns(self, x, y):
+    def set_positions(self, x, y):
         self.set_x(x)
         self.set_y(y)
 
@@ -565,6 +565,9 @@ class Button:
             self.index_select_animation -= 1
         self.index_active_animation = self.sprite.get_animations_len() - 1
 
+    def set_positions_images(self, x, y):
+        self.sprite.set_positions(x, y)
+
     def set_passive_text(self, *args, **kwargs):
         self.passive_text = Text(*args, **kwargs)
 
@@ -573,6 +576,11 @@ class Button:
 
     def set_active_text(self, *args, **kwargs):
         self.active_text = Text(*args, **kwargs)
+
+    def set_positions_texts(self, x, y):
+        self.passive_text.set_positions(x, y)
+        self.select_text.set_positions(x, y)
+        self.active_text.set_positions(x, y)
 
     def set_passive(self):
         self.sprite.set_animation_frame_index(0)
@@ -785,13 +793,19 @@ class MainWindow:
         self.mouse_point = Points(0, 0)
         self.group.add(self.mouse_point)
 
+        self.font = Font(None, 16)
+
         self.button = Button()
         self.group.add(self.button)
-        self.button.set_active_method(self.met_1)
         self.button.set_select_animation(["data\\frames_2\\button_2_1.png"], 100)
         self.button.set_active_animation(["data\\frames_2\\button_3_1.png"], 100)
         self.button.set_passive_animation(["data\\frames_2\\button_1_1.png", "data\\frames_2\\button_1_2.png"],
-                                          0.01, loop=True, activate=True)
+                                          0.001, activate=True)
+        self.button.set_passive_text("Text1", self.font, color=(255, 255, 0))
+        self.button.set_select_text("Text2", self.font, color=(0, 255, 255))
+        self.button.set_active_text("Text3", self.font, color=(255, 0, 255))
+        self.button.set_positions_images(250, -200)
+        self.button.set_positions_texts(250, -200)
 
         self.running = True
         self.mouse_x, self.mouse_y = -1, -1
@@ -811,9 +825,6 @@ class MainWindow:
 
             self._draw_all()  # рисуем все
         self._exit()
-
-    def met_1(self):
-        print(45)
 
     def _exit(self):
         pygame.quit()
