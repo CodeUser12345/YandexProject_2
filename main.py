@@ -67,9 +67,9 @@ class Sprite(pygame.sprite.Sprite):
         self.animations_scale_frames = []  # готовые кадры для отрисовки анимаций
         self.animations_scale_frames_sizes = []  # размер frame по высоте и ширине для каждой анимации
 
-        self.animations_position_politic = []  # политика синхронизации frames для каждой анимации
-        self.animations_position_politic_flag = []  # список флагов измененных/неизмененных position politic frame для каждой анимации
-        self.animations_position_add = []  # добавочные значения x и y в соответствии с политикой синхронизации
+        self.animations_politic = []  # политика синхронизации frames для каждой анимации
+        self.animations_politic_flag = []  # список флагов измененных/неизмененных position politic frame для каждой анимации
+        self.animations_politic_add = []  # добавочные значения x и y в соответствии с политикой синхронизации
         self.last_add_x, self.last_add_y = 0, 0  # прошлые добавочные значения (нужны для отката прошлого сложения)
 
         self.vector, self.speed = None, 0  # переменные для перемещения спрайта
@@ -77,8 +77,8 @@ class Sprite(pygame.sprite.Sprite):
         self.step_x, self.step_y = 0, 0  # переменные перемещения спрайта
         self.vector_flag, self.speed_flag = False, False  # флаги наличия или отсутствия параметров
 
-    def add_animation(self, images, speed=0.01, loop=False, width=1, height=1, rotation=0,
-                      position_politic_x=0, position_politic_y=0, activate=False):
+    def add_animation(self, images, speed=0.01, loop=False, width=1.0, height=1.0, rotation=0.0,
+                      politic_x=0.0, politic_y=0.0, activate=False):
         index = self.get_animations_len()
         self.animations_images.append(None)
         self.animations_images_sizes.append(None)
@@ -106,10 +106,10 @@ class Sprite(pygame.sprite.Sprite):
         self.animations_scale_frames_sizes.append([None] * self.animations_len[index])
         self.set_animation_scale(index, width, height)
 
-        self.animations_position_politic.append(None)
-        self.animations_position_politic_flag.append(None)
-        self.animations_position_add.append([None] * self.animations_len[index])
-        self.set_animation_position_politic(index, position_politic_x, position_politic_y)
+        self.animations_politic.append(None)
+        self.animations_politic_flag.append(None)
+        self.animations_politic_add.append([None] * self.animations_len[index])
+        self.set_animation_politic(index, politic_x, politic_y)
 
         if activate:
             self.set_animation_activate(index)
@@ -142,17 +142,17 @@ class Sprite(pygame.sprite.Sprite):
         self.animations_scale_frames.pop(index)
         self.animations_scale_frames_sizes.pop(index)
 
-        self.animations_position_politic.pop(index)
-        self.animations_position_politic_flag.pop(index)
-        self.animations_position_add.pop(index)
+        self.animations_politic.pop(index)
+        self.animations_politic_flag.pop(index)
+        self.animations_politic_add.pop(index)
 
     def set_positions(self, x=None, y=None):
         index = int(self.get_animation_frame_index())
         if x is not None:
-            self.step_x = x + self.animations_position_add[self.animation_index][index][0]
+            self.step_x = x + self.animations_politic_add[self.animation_index][index][0]
             self.rect.x = 0
         if y is not None:
-            self.step_y = y + self.animations_position_add[self.animation_index][index][1]
+            self.step_y = y + self.animations_politic_add[self.animation_index][index][1]
             self.rect.y = 0
 
     def add_positions(self, x=None, y=None):
@@ -163,8 +163,8 @@ class Sprite(pygame.sprite.Sprite):
 
     def get_positions(self):
         index = int(self.get_animation_frame_index())
-        return self.rect.x - self.animations_position_add[self.animation_index][index][0] + self.step_x, \
-               -self.rect.y - self.animations_position_add[self.animation_index][index][1] - self.step_y
+        return self.rect.x - self.animations_politic_add[self.animation_index][index][0] + self.step_x, \
+               -self.rect.y - self.animations_politic_add[self.animation_index][index][1] - self.step_y
 
     def set_animation_images(self, index, images):
         self.animations_images[index] = [get_image(n) for n in images]
@@ -237,12 +237,12 @@ class Sprite(pygame.sprite.Sprite):
     def get_animation_index(self):
         return self.animation_index
 
-    def set_animation_position_politic(self, index, x=0, y=0):
-        self.animations_position_politic[index] = [x, y]
-        self.animations_position_politic_flag[index] = True
+    def set_animation_politic(self, index, x=0.0, y=0.0):
+        self.animations_politic[index] = [x, y]
+        self.animations_politic_flag[index] = True
 
-    def get_animation_position_politic(self, index):
-        return self.animations_position_politic[index]
+    def get_animation_politic(self, index):
+        return self.animations_politic[index]
 
     def set_vector(self, degrees):
         self.vector = degrees
@@ -302,20 +302,20 @@ class Sprite(pygame.sprite.Sprite):
                     pygame.transform.scale(images[index], (width, height))
                 self.animations_scale_frames_sizes[self.animation_index][index] = [width, height]
             self.animations_scale_flag[self.animation_index] = False
-            self.animations_position_politic_flag[self.animation_index] = True
+            self.animations_politic_flag[self.animation_index] = True
             self.animations_mask_flag[self.animation_index] = True
             return True
         return False
 
     def _position_politic_frames_update(self):
-        if self.animations_position_politic_flag[self.animation_index]:
+        if self.animations_politic_flag[self.animation_index]:
             sizes = self.animations_scale_frames_sizes[self.animation_index]
-            positions_politic = self.animations_position_politic[self.animation_index]
+            positions_politic = self.animations_politic[self.animation_index]
             for index in range(self.animations_len[self.animation_index]):
                 add_x = -sizes[index][0] * ((positions_politic[0] + 1) / 2)
                 add_y = sizes[index][1] * ((positions_politic[1] + 1) / 2)
-                self.animations_position_add[self.animation_index][index] = [add_x, add_y]
-            self.animations_position_politic_flag[self.animation_index] = False
+                self.animations_politic_add[self.animation_index][index] = [add_x, add_y]
+            self.animations_politic_flag[self.animation_index] = False
             return True
         return False
 
@@ -333,10 +333,10 @@ class Sprite(pygame.sprite.Sprite):
 
         self.step_x -= self.last_add_x
         self.step_y -= self.last_add_y
-        self.step_x += self.animations_position_add[self.animation_index][index][0]
-        self.step_y += self.animations_position_add[self.animation_index][index][1]
-        self.last_add_x = self.animations_position_add[self.animation_index][index][0]
-        self.last_add_y = self.animations_position_add[self.animation_index][index][1]
+        self.step_x += self.animations_politic_add[self.animation_index][index][0]
+        self.step_y += self.animations_politic_add[self.animation_index][index][1]
+        self.last_add_x = self.animations_politic_add[self.animation_index][index][0]
+        self.last_add_y = self.animations_politic_add[self.animation_index][index][1]
 
     def _animation_frame_index_update(self, number):
         last_animation_frame_index = int(self.animation_frame_index)
@@ -409,11 +409,6 @@ class Entity(Sprite):
         self.mana_points_now, self.mana_points_max = 0, 0
         self.energy_points_now, self.energy_points_max = 0, 0
         self.endurance_points_now, self.endurance_points_max = 0, 0
-
-
-class Object(Sprite):
-    def __init__(self):
-        pass
 
 
 class Points(pygame.sprite.Sprite):
@@ -659,8 +654,18 @@ class Camera:
         self.set_width(width)
         self.set_height(height)
 
-    def add_sprite(self, sprite):
-        self.sprites.append(sprite)
+    def add(self, object):
+        type_object = type(object)
+        if type_object == Sprite:
+            self.sprites.append(object)
+        elif type_object == Object:
+            self.sprites.append(object.sprite)
+        elif type_object == Map:
+            for n in object.objects:
+                self.add(n)
+        else:
+            print(f"Тип {type_object} не определен")
+            sys.exit()
         self.index_list = range(len(self.sprites))
 
     def delete_sprite(self, index):
@@ -765,6 +770,11 @@ class Group(pygame.sprite.Group):
             elif type_args == Button:
                 self.buttons.append(args[0])
                 self.add(args[0].sprite)
+            elif type_args == Object:
+                super().add(args[0].sprite)
+            elif type_args == Map:
+                for n in args[0].objects:
+                    self.add(n)
             else:
                 super().add(*args)
         else:
@@ -776,6 +786,106 @@ class Group(pygame.sprite.Group):
             n.draw(args[0])
         for n in self.buttons:
             n.draw(args[0])
+
+
+class Object:
+    def __init__(self, x=0, y=0):
+        self.sprite = Sprite(x, y, 1, 1)
+        self.sprite.add_animation([None], speed=100, activate=True)
+
+    def load(self, path):
+        data_object = []
+        with open(path, "r", encoding="utf-8") as file:
+            text = file.read().split("\n")
+            len_text = len(text)
+
+            start_path = text[1][1:-1].replace("\\\\", "\\")
+            stop_path = text[2][1:-1].replace("\\\\", "\\")
+
+            index = 4
+            while index < len_text:
+                identificator, data = text[index].replace(" ", "").split("=")
+                if identificator == "images":
+                    data = data.replace("[", "").replace("]", "").split(",")
+                    new_data = []
+                    for n in range(len(data)):
+                        if data[n][0] in ["'", '"'] and data[n][-1] in ["'", '"']:
+                            if data[n][1:-1] != "None":
+                                new_data.append(start_path + data[n][1:-1].replace("\\\\", "\\") + stop_path)
+                            else:
+                                new_data.append(None)
+                        else:
+                            new_data[-1] = [new_data[-1], int(float(data[n]))]
+                    data = new_data
+
+                elif identificator in ["speed", "width", "height", "rotation", "politic_x", "politic_y"]:
+                    data = float(data)
+                elif identificator in ["loop", "activate"]:
+                    if data in ["False", "0"]:
+                        data = False
+                    else:
+                        data = True
+                else:
+                    print(f"Ошибка, идентификатор {identificator} не определен")
+                    sys.exit()
+                data_object.append([identificator, data])
+                index += 1
+
+        identificators = ["images", "speed", "loop", "width", "height",
+                          "rotation", "politic_x", "politic_y", "activate"]
+        data = [[None], 100, False, 1.0, 1.0, 0.0, 0.0, 0.0, True]
+        for n in data_object:
+            data[identificators.index(n[0])] = n[1]
+
+        self.sprite.delete_animation(0)
+        self.sprite.add_animation(data[0], speed=data[1], loop=data[2], width=data[3], height=data[4],
+                                  rotation=data[5], politic_x=data[6], politic_y=data[7], activate=data[8])
+
+    def set_positions(self, x, y):
+        self.sprite.set_positions(x, y)
+
+    def update(self, number):
+        self.sprite.update(number)
+
+
+class Map:
+    def __init__(self):
+        self.objects = []
+
+    def load(self, path):
+        indexes = []
+        paths = []
+        positions = []
+        with open(path, "r", encoding="utf-8") as file:
+            text = file.read().split("\n")
+            len_text = len(text)
+
+            start_path = text[1][1:-1].replace("\\\\", "\\")
+            stop_path = text[2][1:-1].replace("\\\\", "\\")
+
+            index = 4
+            while True:
+                string = text[index]
+                if string == "positions:":
+                    break
+                string = string.split(", ")
+                indexes.append(string[0])
+                paths.append(start_path + string[1][1:-1].replace("\\\\", "\\") + stop_path)
+                index += 1
+
+            index += 1
+            while index < len_text:
+                string = text[index].split(", ")
+                positions.append([string[0], int(string[1]), int(string[2])])
+                index += 1
+
+        for n in positions:
+            self.objects.append(Object(n[1], n[2]))
+            self.objects[-1].load(paths[indexes.index(n[0])])
+
+    def update(self, number):
+        for n in self.objects:
+            n.update(number)
 
 
 class MainWindow:
@@ -793,17 +903,17 @@ class MainWindow:
         self.mouse_point = Points(0, 0)
         self.group.add(self.mouse_point)
 
-        self.font = Font(None, 16)
+        self.font = Font(None, 32)
 
         self.button = Button()
         self.group.add(self.button)
-        self.button.set_select_animation(["data\\frames_2\\button_2_1.png"], 100)
-        self.button.set_active_animation(["data\\frames_2\\button_3_1.png"], 100)
-        self.button.set_passive_animation(["data\\frames_2\\button_1_1.png", "data\\frames_2\\button_1_2.png"],
-                                          0.001, activate=True)
-        self.button.set_passive_text("Text1", self.font, color=(255, 255, 0))
-        self.button.set_select_text("Text2", self.font, color=(0, 255, 255))
-        self.button.set_active_text("Text3", self.font, color=(255, 0, 255))
+        self.button.set_select_animation(["data\\images\\button_2_1.png"], 100)
+        self.button.set_active_animation(["data\\images\\button_3_1.png"], 100)
+        self.button.set_passive_animation(["data\\images\\button_1_1.png", "data\\images\\button_1_2.png"],
+                                          0.001, activate=True, loop=True)
+        self.button.set_passive_text("Text_1", self.font, color=(255, 255, 0))
+        self.button.set_select_text("Text_2", self.font, color=(0, 255, 255))
+        self.button.set_active_text("Text_3", self.font, color=(255, 0, 255))
         self.button.set_positions_images(250, -200)
         self.button.set_positions_texts(250, -200)
 
@@ -814,11 +924,17 @@ class MainWindow:
         self.mouse_up, self.mouse_down = False, False
         self.keyboard_keys = []
 
+        map = Map()
+        map.load("data\\maps\\map_1.txt")
+        self.camera.add(map)
+        self.group.add(map)
+
         while self.running:
             self._get_data()  # получаем данные от клавиатуры и мышки
             x, y, scale = self._edit_data()  # обрабатываем данные
             self._get_number_frames_time()  # количество итераций за прошедшее время
 
+            map.update(self.number_frames_time)
             self.mouse_point.set_positions(self.mouse_x, self.mouse_y)
             self.camera.update(x, y, scale)  # обновляем камеру
             self._updates_sprites()  # обновляем спрайты
