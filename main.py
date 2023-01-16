@@ -253,7 +253,7 @@ class MainWindow:
         pygame.init()
         self.window = pygame.display.Info()
         self.width_window, self.height_window = self.window.current_w, self.window.current_h
-        self.screen = pygame.display.set_mode((self.width_window // 1.5, self.height_window // 1.5))
+        self.screen = pygame.display.set_mode((self.width_window, self.height_window))
 
         self.last_time, self.step_time, self.number_frames_time = time.time(), 0.001, 0
 
