@@ -1,0 +1,8 @@
+images:
+"data_user\\fields\\stone_1\\images\\stone.png", -1
+parameters:
+speed, 100
+activate, 1
+width, 0.5
+height, 0.5
+rotation, random(0, 259, 1)

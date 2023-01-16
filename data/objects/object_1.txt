@@ -1,9 +1,0 @@
-parts_path:
-"data\\images\\"
-".png"
-object:
-images = [["spider", -1]]
-speed=100
-activate=1
-width=0.1
-height=0.1

@@ -1,0 +1,8 @@
+images:
+"data_user\\fields\\wall\\images\\wall.png", -1
+parameters:
+speed, 100
+activate, 1
+width, 1
+height, 1
+rotation, 180

@@ -1,0 +1,7 @@
+images:
+"data_user\\fields\\grass\\images\\grass.png"
+parameters:
+speed, 100
+activate, 1
+width, 0.5
+height, 0.5

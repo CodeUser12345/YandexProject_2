@@ -1,0 +1,30 @@
+images:
+"data_user\\entities\\human\\images\\survivor-idle_rifle_0.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_1.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_2.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_3.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_4.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_5.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_6.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_7.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_8.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_9.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_10.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_11.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_12.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_13.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_14.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_15.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_16.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_17.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_18.png"
+"data_user\\entities\\human\\images\\survivor-idle_rifle_19.png"
+parameters:
+speed, 0.01
+loop, 1
+activate, 1
+width, 0.8
+height, 0.8
+rotation, 135
+politic_x, 0.5
+politic_y, 0.5
